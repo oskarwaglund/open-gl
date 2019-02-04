@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using OpenTK;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Graphics;
@@ -23,8 +21,9 @@ namespace TriSpin
         private int vboPos;
         private int vboCol;
         private int vboMview;
+        private int iboElements;
 
-        private double time = 0;
+        private double time;
 
         private List<double> frameTimes = new List<double>(Enumerable.Range(0, 10).Select(s => 0.0));
         private int frameCount;
@@ -32,6 +31,7 @@ namespace TriSpin
         Vector3[] vertData;
         Vector3[] colData;
         Matrix4[] mViewData;
+        private int[] indiceData;
 
         void initProgram()
         {
@@ -55,6 +55,7 @@ namespace TriSpin
             GL.GenBuffers(1, out vboPos);
             GL.GenBuffers(1, out vboCol);
             GL.GenBuffers(1, out vboMview);
+            GL.GenBuffers(1, out iboElements);
         }
 
         void loadShader(String filename, ShaderType type, int program, out int address)
@@ -85,12 +86,29 @@ namespace TriSpin
                 new Vector3( 0f,  1f, 0f)
             };
 
-            mViewData = new[]
-            {
-                Matrix4.Identity
-            };
             GL.ClearColor(Color.LightBlue);
-            GL.PointSize(3);
+            GL.PointSize(10);
+
+            float V = 0.5f;
+            float H = V/2;
+            vertData = new[]
+            {
+                new Vector3(0, V-H, 0),
+                new Vector3(V, -H, V),
+                new Vector3(-V, -H, V),
+                new Vector3(-V, -H, -V),
+                new Vector3(V, -H, -V)
+            };
+
+            indiceData = new[]
+            {
+                0, 1, 2,
+                0, 2, 3,
+                0, 3, 4,
+                0, 4, 1,
+                1, 2, 3,
+                1, 4, 3
+            };
 
             GL.UseProgram(pgmId);
         }
@@ -101,17 +119,6 @@ namespace TriSpin
 
             time += e.Time;
 
-            double a1 = time*2;
-            double a2 = a1 + Math.PI*2/3;
-            double a3 = a2 + Math.PI*2/3;
-
-            vertData = new[]
-            {
-                new Vector3((float)Math.Cos(a1), (float)Math.Sin(a1), 0f),
-                new Vector3((float)Math.Cos(a2), (float)Math.Sin(a2), 0f),
-                new Vector3((float)Math.Cos(a3), (float)Math.Sin(a3), 0f)
-            };
-
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboPos);
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(vertData.Length * Vector3.SizeInBytes), vertData, BufferUsageHint.StaticDraw);
             GL.VertexAttribPointer(attrVpos, 3, VertexAttribPointerType.Float, false, 0, 0);
@@ -120,6 +127,13 @@ namespace TriSpin
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(colData.Length * Vector3.SizeInBytes), colData, BufferUsageHint.StaticDraw);
             GL.VertexAttribPointer(attrVcol, 3, VertexAttribPointerType.Float, true, 0, 0);
 
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, iboElements);
+            GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(indiceData.Length * sizeof(int)), indiceData, BufferUsageHint.StaticDraw);
+
+            mViewData = new[]
+            {
+                Matrix4.CreateRotationY(0.2f*(float)time)*Matrix4.CreateRotationX(0.2f)
+            };
             GL.UniformMatrix4(uniMview, false, ref mViewData[0]);
         }
 
@@ -148,7 +162,7 @@ namespace TriSpin
 
             GL.EnableVertexAttribArray(attrVpos);
             GL.EnableVertexAttribArray(attrVcol);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            GL.DrawElements(BeginMode.Triangles, indiceData.Length, DrawElementsType.UnsignedInt, 0);
 
             GL.DisableVertexAttribArray(attrVpos);
             GL.DisableVertexAttribArray(attrVcol);
@@ -159,13 +173,7 @@ namespace TriSpin
         }
 
         public Win()
-            : base(400, 400,
-                GraphicsMode.Default,
-                "Busy Street",
-                GameWindowFlags.Default,
-                DisplayDevice.Default,
-                4, 5,
-                GraphicsContextFlags.ForwardCompatible)
+            : base(512, 512, new GraphicsMode(32, 24, 0, 4))
         {
 
         }
