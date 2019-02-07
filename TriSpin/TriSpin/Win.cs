@@ -28,31 +28,32 @@ namespace TriSpin
         private List<double> frameTimes = new List<double>(Enumerable.Range(0, 10).Select(s => 0.0));
         private int frameCount;
 
-        Vector3[] vertData;
-        Vector3[] colData;
-        Matrix4[] mViewData;
-        private int[] indiceData;
-
         private Camera cam = new Camera();
         Vector2 lastMousePos;
 
-        void initProgram()
+        List<Volume> Volumes = new List<Volume>();
+        private Vector3[] vertData = {};
+        private int[] indiceData = {};
+        private Vector3[] colorData = {};
+
+        private int InitProgram()
         {
-            pgmId = GL.CreateProgram();
+            int id = GL.CreateProgram();
 
-            loadShader("vs.glsl", ShaderType.VertexShader, pgmId, out vsId);
-            loadShader("fs.glsl", ShaderType.FragmentShader, pgmId, out fsId);
+            loadShader("vs.glsl", ShaderType.VertexShader, id, out vsId);
+            loadShader("fs.glsl", ShaderType.FragmentShader, id, out fsId);
 
-            GL.LinkProgram(pgmId);
-            Console.WriteLine(GL.GetProgramInfoLog(pgmId));
+            GL.LinkProgram(id);
+            Console.WriteLine(GL.GetProgramInfoLog(id));
 
-            attrVpos = GL.GetAttribLocation(pgmId, "vPosition");
-            attrVcol = GL.GetAttribLocation(pgmId, "vColor");
-            uniMview = GL.GetUniformLocation(pgmId, "modelview");
+            attrVpos = GL.GetAttribLocation(id, "vPosition");
+            attrVcol = GL.GetAttribLocation(id, "vColor");
+            uniMview = GL.GetUniformLocation(id, "modelview");
 
             if (attrVpos == -1 || attrVcol == -1 || uniMview == -1)
             {
                 Console.WriteLine("Error binding attributes");
+                throw new Exception();
             }
 
             GL.GenBuffers(1, out vboPos);
@@ -60,8 +61,12 @@ namespace TriSpin
             GL.GenBuffers(1, out vboMview);
             GL.GenBuffers(1, out iboElements);
 
+            Volumes.Add(new Pyramid());
+
             CursorVisible = false;
             lastMousePos = new Vector2(Mouse.GetState().X, Mouse.GetState().Y);
+
+            return id;
         }
 
         void loadShader(String filename, ShaderType type, int program, out int address)
@@ -83,39 +88,8 @@ namespace TriSpin
             Title = "Loading...";
             X = 1000;
             Y = 300;
-            initProgram();
-
-            colData = new []
-            {
-                new Vector3(1f, 0f, 0f),
-                new Vector3( 0f, 0f, 1f),
-                new Vector3( 0f,  1f, 0f)
-            };
-
+            pgmId = InitProgram();
             GL.ClearColor(Color.LightBlue);
-            GL.PointSize(10);
-
-            float V = 0.5f;
-            float H = V/2;
-            vertData = new[]
-            {
-                new Vector3(0, V-H, 0),
-                new Vector3(V, -H, V),
-                new Vector3(-V, -H, V),
-                new Vector3(-V, -H, -V),
-                new Vector3(V, -H, -V)
-            };
-
-            indiceData = new[]
-            {
-                0, 1, 2,
-                0, 2, 3,
-                0, 3, 4,
-                0, 4, 1,
-                1, 2, 3,
-                1, 4, 3
-            };
-
             GL.UseProgram(pgmId);
         }
 
@@ -127,24 +101,43 @@ namespace TriSpin
 
             ProcessInput();
 
+            List<Vector3> verts = new List<Vector3>();
+            List<int> inds = new List<int>();
+            List<Vector3> colors = new List<Vector3>();
+
+            int vertCount = 0;
+
+            foreach (var vol in Volumes)
+            {
+                verts.AddRange(vol.Verts);
+                inds.AddRange(vol.GetIndices(vertCount));
+                colors.AddRange(vol.ColorData);
+                vertCount += vol.VertLength;
+            }
+
+            vertData = verts.ToArray();
+            indiceData = inds.ToArray();
+            colorData = colors.ToArray();
+
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboPos);
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(vertData.Length * Vector3.SizeInBytes), vertData, BufferUsageHint.StaticDraw);
             GL.VertexAttribPointer(attrVpos, 3, VertexAttribPointerType.Float, false, 0, 0);
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboCol);
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(colData.Length * Vector3.SizeInBytes), colData, BufferUsageHint.StaticDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(colorData.Length * Vector3.SizeInBytes), colorData, BufferUsageHint.StaticDraw);
             GL.VertexAttribPointer(attrVcol, 3, VertexAttribPointerType.Float, true, 0, 0);
 
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, iboElements);
             GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(indiceData.Length * sizeof(int)), indiceData, BufferUsageHint.StaticDraw);
 
+            Volumes[0].Rotation = new Vector3(0, 0.5f*(float)time, 0);
 
-            var projMatrix = cam.GetViewMatrix() * Matrix4.CreatePerspectiveFieldOfView(1.3f, ClientSize.Width / (float)ClientSize.Height, 1.0f, 40.0f);
-            mViewData = new[]
+            foreach (Volume vol in Volumes)
             {
-                projMatrix
-            };
-            GL.UniformMatrix4(uniMview, false, ref mViewData[0]);
+                vol.CalculateModelMatrix();
+                vol.ViewProjectionMatrix = cam.GetViewMatrix()*Matrix4.CreatePerspectiveFieldOfView(1.3f, ClientSize.Width / (float)ClientSize.Height, 1.0f, 40.0f);
+                vol.ModelViewProjectionMatrix = vol.ModelMatrix * vol.ViewProjectionMatrix;
+            }
         }
 
         private void ProcessInput()
@@ -215,13 +208,20 @@ namespace TriSpin
 
             GL.EnableVertexAttribArray(attrVpos);
             GL.EnableVertexAttribArray(attrVcol);
-            GL.DrawElements(BeginMode.Triangles, indiceData.Length, DrawElementsType.UnsignedInt, 0);
+
+            int currIndice = 0;
+            foreach (var vol in Volumes)
+            {
+                GL.UniformMatrix4(uniMview, false, ref vol.ModelViewProjectionMatrix);
+                GL.DrawElements(BeginMode.Triangles, vol.IndiceLength, DrawElementsType.UnsignedInt, currIndice * sizeof(uint));
+                currIndice += vol.IndiceLength;
+            }
 
             GL.DisableVertexAttribArray(attrVpos);
             GL.DisableVertexAttribArray(attrVcol);
 
-            GL.Flush();
 
+            GL.Flush();
             SwapBuffers();
         }
 
