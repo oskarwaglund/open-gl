@@ -33,6 +33,9 @@ namespace TriSpin
         Matrix4[] mViewData;
         private int[] indiceData;
 
+        private Camera cam = new Camera();
+        Vector2 lastMousePos;
+
         void initProgram()
         {
             pgmId = GL.CreateProgram();
@@ -56,6 +59,9 @@ namespace TriSpin
             GL.GenBuffers(1, out vboCol);
             GL.GenBuffers(1, out vboMview);
             GL.GenBuffers(1, out iboElements);
+
+            CursorVisible = false;
+            lastMousePos = new Vector2(Mouse.GetState().X, Mouse.GetState().Y);
         }
 
         void loadShader(String filename, ShaderType type, int program, out int address)
@@ -119,6 +125,8 @@ namespace TriSpin
 
             time += e.Time;
 
+            ProcessInput();
+
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboPos);
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(vertData.Length * Vector3.SizeInBytes), vertData, BufferUsageHint.StaticDraw);
             GL.VertexAttribPointer(attrVpos, 3, VertexAttribPointerType.Float, false, 0, 0);
@@ -130,21 +138,66 @@ namespace TriSpin
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, iboElements);
             GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(indiceData.Length * sizeof(int)), indiceData, BufferUsageHint.StaticDraw);
 
+
+            var projMatrix = cam.GetViewMatrix() * Matrix4.CreatePerspectiveFieldOfView(1.3f, ClientSize.Width / (float)ClientSize.Height, 1.0f, 40.0f);
             mViewData = new[]
             {
-                Matrix4.CreateRotationY(0.2f*(float)time)*Matrix4.CreateRotationX(0.2f)
+                projMatrix
             };
             GL.UniformMatrix4(uniMview, false, ref mViewData[0]);
         }
 
-        protected override void OnKeyDown(KeyboardKeyEventArgs e)
+        private void ProcessInput()
         {
-            base.OnKeyDown(e);
 
-            if (e.Key == Key.Escape)
+            if (Keyboard.GetState().IsKeyDown(Key.W))
+            {
+                cam.Move(0f, 0.1f, 0f);
+            }
+
+            if (Keyboard.GetState().IsKeyDown(Key.S))
+            {
+                cam.Move(0f, -0.1f, 0f);
+            }
+
+            if (Keyboard.GetState().IsKeyDown(Key.A))
+            {
+                cam.Move(-0.1f, 0f, 0f);
+            }
+
+            if (Keyboard.GetState().IsKeyDown(Key.D))
+            {
+                cam.Move(0.1f, 0f, 0f);
+            }
+
+            if (Keyboard.GetState().IsKeyDown(Key.Q))
+            {
+                cam.Move(0f, 0f, -0.1f);
+            }
+
+            if (Keyboard.GetState().IsKeyDown(Key.E))
+            {
+                cam.Move(0f, 0f, 0.1f);
+            }
+
+            if (Keyboard.GetState().IsKeyDown(Key.Escape))
             {
                 Exit();
             }
+
+            //Mouse
+            if (Focused)
+            {
+                var delta = lastMousePos - new Vector2(Mouse.GetState().X, Mouse.GetState().Y);
+                cam.AddRotation(delta.X, delta.Y);
+                lastMousePos = new Vector2(Mouse.GetState().X, Mouse.GetState().Y);
+            }
+        }
+
+        protected override void OnFocusedChanged(EventArgs e)
+        {
+            base.OnFocusedChanged(e);
+            lastMousePos = new Vector2(Mouse.GetState().X, Mouse.GetState().Y);
         }
 
         protected override void OnRenderFrame(FrameEventArgs e)
