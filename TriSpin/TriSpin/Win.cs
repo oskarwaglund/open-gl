@@ -62,6 +62,7 @@ namespace TriSpin
             GL.GenBuffers(1, out iboElements);
 
             Volumes.Add(new Pyramid());
+            Volumes.Add(new Pyramid());
 
             CursorVisible = false;
             lastMousePos = new Vector2(Mouse.GetState().X, Mouse.GetState().Y);
@@ -131,11 +132,12 @@ namespace TriSpin
             GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(indiceData.Length * sizeof(int)), indiceData, BufferUsageHint.StaticDraw);
 
             Volumes[0].Rotation = new Vector3(0, 0.5f*(float)time, 0);
+            Volumes[0].Position = new Vector3(0, 0, -2f);
 
             foreach (Volume vol in Volumes)
             {
                 vol.CalculateModelMatrix();
-                vol.ViewProjectionMatrix = cam.GetViewMatrix()*Matrix4.CreatePerspectiveFieldOfView(1.3f, ClientSize.Width / (float)ClientSize.Height, 1.0f, 40.0f);
+                vol.ViewProjectionMatrix = cam.GetViewMatrix() * Matrix4.CreatePerspectiveFieldOfView(1.3f, ClientSize.Width/(float) ClientSize.Height, 1.0f, 40.0f);
                 vol.ModelViewProjectionMatrix = vol.ModelMatrix * vol.ViewProjectionMatrix;
             }
         }
@@ -196,6 +198,8 @@ namespace TriSpin
         protected override void OnRenderFrame(FrameEventArgs e)
         {
             base.OnRenderFrame(e);
+
+            if (time == 0) return;
 
             frameTimes[frameCount%frameTimes.Count] = e.Time;
             frameCount++;
