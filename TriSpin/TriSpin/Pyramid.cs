@@ -37,5 +37,17 @@ namespace TriSpin
                 new Vector3( 0f, 1f, 0f),
             };
         }
+
+        public override Vector2[] GetTextureCoords()
+        {
+            return new []
+            {
+                new Vector2(0, 0),
+                new Vector2(0, 0),
+                new Vector2(0, 0),
+                new Vector2(0, 0),
+                new Vector2(0, 0),
+            };
+        }
     }
 }

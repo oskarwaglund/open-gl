@@ -54,6 +54,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Pyramid.cs" />
     <Compile Include="Shader.cs" />
+    <Compile Include="TexPyramid.cs" />
     <Compile Include="Volume.cs" />
     <Compile Include="Win.cs" />
   </ItemGroup>
@@ -62,11 +63,18 @@
     <None Include="OpenTK.dll.config" />
     <None Include="packages.config" />
     <None Include="Shaders\fs.glsl" />
+    <None Include="Shaders\fs_tex.glsl" />
     <None Include="Shaders\vs.glsl" />
+    <None Include="Shaders\vs_tex.glsl" />
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <Content Include="Textures\bricks.jpg" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>xcopy /s /y $(ProjectDir)Shaders $(TargetDir)</PostBuildEvent>
+    <PostBuildEvent>xcopy /s /y $(ProjectDir)Shaders $(TargetDir)
+xcopy /s /y $(ProjectDir)Textures $(TargetDir)</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

@@ -1,8 +1,8 @@
 ﻿#version 440
 
 in vec3 vPosition;
-in vec3 vColor;
-out vec4 color;
+in vec2 texcoord;
+out vec2 f_texcoord;
 
 uniform mat4 modelview;
 
@@ -11,5 +11,5 @@ main()
 {
     gl_Position = modelview * vec4(vPosition, 1.0);
 
-    color = vec4( vColor, 1.0);
+    f_texcoord = texcoord;
 }

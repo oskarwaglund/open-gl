@@ -19,6 +19,11 @@ namespace TriSpin
         public Matrix4 ViewProjectionMatrix = Matrix4.Identity;
         public Matrix4 ModelViewProjectionMatrix = Matrix4.Identity;
 
+        public bool IsTextured = false;
+        public int TextureID;
+        public int TextureCoordsCount;
+        public abstract Vector2[] GetTextureCoords();
+
         public int VertLength
         {
             get { return _Verts.Length; }

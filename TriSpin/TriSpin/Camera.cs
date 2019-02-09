@@ -5,10 +5,24 @@ namespace TriSpin
 {
     class Camera
     {
-        public Vector3 Position = new Vector3(0f, 0f, -2f);
-        public Vector3 Orientation = new Vector3(0f, 0f, -(float)Math.PI);
+        public Vector3 Position;
+        public Vector3 Orientation;
         public float MoveSpeed = 0.2f;
         public float MouseSensitivity = 0.0025f;
+
+        public Camera()
+            : this(new Vector3(0, 0, 2))
+        {}
+
+        public Camera(Vector3 pos)
+            : this(pos, new Vector3((float)Math.PI, 0, 0))
+        {}
+
+        public Camera(Vector3 pos, Vector3 orient)
+        {
+            Position = pos;
+            Orientation = orient;
+        }
 
         public Matrix4 GetViewMatrix()
         {

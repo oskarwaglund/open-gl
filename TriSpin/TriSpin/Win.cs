@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
 using OpenTK;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Graphics;
-using System.IO;
 using OpenTK.Input;
 
 namespace TriSpin
@@ -15,28 +15,44 @@ namespace TriSpin
         private double time;
 
         Dictionary<string, Shader> shaders = new Dictionary<string, Shader>();
-        string activeShader = "def";
+        Dictionary<string, int> textures = new Dictionary<string, int>();
+        string activeShader;
         private int iboElements;
 
-        private bool renderReady = false;
+        private bool renderReady;
 
-        private List<double> frameTimes = new List<double>(Enumerable.Range(0, 10).Select(s => 0.0));
-        private int frameCount;
-
-        private Camera cam = new Camera();
+        private Camera cam = new Camera(new Vector3(0, 0, 4f));
         Vector2 lastMousePos;
 
         List<Volume> Volumes = new List<Volume>();
-        private Vector3[] vertData = {};
-        private int[] indiceData = {};
-        private Vector3[] colorData = {};
+        private Vector3[] vertData;
+        private int[] indiceData;
+        private Vector3[] colorData;
+        private Vector2[] texCoordData;
+
+        private bool shaderKeyPressed;
 
         private void InitProgram()
         {
             GL.GenBuffers(1, out iboElements);
+
+            shaders.Add("tex", new Shader("vs_tex.glsl", "fs_tex.glsl"));
             shaders.Add("def", new Shader("vs.glsl", "fs.glsl"));
-            Volumes.Add(new Pyramid());
-            Volumes.Add(new Pyramid());
+
+            activeShader = shaders.Keys.First();
+
+            textures.Add("bricks", LoadImage("bricks.jpg"));
+            textures.Add("bricks2", LoadImage("bricks2.jpg"));
+
+            TexPyramid tp1 = new TexPyramid();
+            tp1.Position = new Vector3(-1, 0, 0);
+            tp1.TextureID = textures["bricks2"];
+            Volumes.Add(tp1);
+
+            TexPyramid tp2 = new TexPyramid();
+            tp2.TextureID = textures["bricks"];
+            tp2.Position = new Vector3(1, 0, 0);
+            Volumes.Add(tp2);
 
             CursorVisible = false;
             lastMousePos = new Vector2(Mouse.GetState().X, Mouse.GetState().Y);
@@ -70,6 +86,7 @@ namespace TriSpin
             List<Vector3> verts = new List<Vector3>();
             List<int> inds = new List<int>();
             List<Vector3> colors = new List<Vector3>();
+            List<Vector2> texCoords = new List<Vector2>();
 
             int vertCount = 0;
 
@@ -78,12 +95,14 @@ namespace TriSpin
                 verts.AddRange(vol.Verts);
                 inds.AddRange(vol.GetIndices(vertCount));
                 colors.AddRange(vol.ColorData);
+                texCoords.AddRange(vol.GetTextureCoords());
                 vertCount += vol.VertLength;
             }
 
             vertData = verts.ToArray();
             indiceData = inds.ToArray();
             colorData = colors.ToArray();
+            texCoordData = texCoords.ToArray();
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, shaders[activeShader].GetBuffer("vPosition"));
 
@@ -96,12 +115,18 @@ namespace TriSpin
                 GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(colorData.Length * Vector3.SizeInBytes), colorData, BufferUsageHint.StaticDraw);
                 GL.VertexAttribPointer(shaders[activeShader].GetAttribute("vColor"), 3, VertexAttribPointerType.Float, true, 0, 0);
             }
+            else if (shaders[activeShader].GetAttribute("texcoord") != -1)
+            {
+                GL.BindBuffer(BufferTarget.ArrayBuffer, shaders[activeShader].GetBuffer("texcoord"));
+                GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(texCoordData.Length * Vector2.SizeInBytes), texCoordData, BufferUsageHint.StaticDraw);
+                GL.VertexAttribPointer(shaders[activeShader].GetAttribute("texcoord"), 2, VertexAttribPointerType.Float, true, 0, 0);
+            }
 
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, iboElements);
             GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(indiceData.Length * sizeof(int)), indiceData, BufferUsageHint.StaticDraw);
 
             Volumes[0].Rotation = new Vector3(0, 0.5f * (float)time, 0);
-            Volumes[0].Position = new Vector3(0, 0, -2f);
+            Volumes[1].Rotation = new Vector3(0, 0.5f * (float)time, 0);
 
             foreach (Volume vol in Volumes)
             {
@@ -119,12 +144,6 @@ namespace TriSpin
 
             if (!renderReady) return;
 
-            frameTimes[frameCount%frameTimes.Count] = e.Time;
-            frameCount++;
-            double fps = frameTimes.Count/frameTimes.Sum();
-
-            Title = String.Format("Spinning dat triangle at {0} FPS", (int) fps);
-
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             GL.Enable(EnableCap.DepthTest);
 
@@ -133,7 +152,15 @@ namespace TriSpin
             int currIndice = 0;
             foreach (var vol in Volumes)
             {
+                GL.ActiveTexture(TextureUnit.Texture0);
+                GL.BindTexture(TextureTarget.Texture2D, vol.TextureID);
                 GL.UniformMatrix4(shaders[activeShader].GetUniform("modelview"), false, ref vol.ModelViewProjectionMatrix);
+
+                if (shaders[activeShader].GetUniform("maintexture") != -1)
+                {
+                    GL.Uniform1(shaders[activeShader].GetUniform("maintexture"), 0);
+                }
+
                 GL.DrawElements(BeginMode.Triangles, vol.IndiceLength, DrawElementsType.UnsignedInt, currIndice * sizeof(uint));
                 currIndice += vol.IndiceLength;
             }
@@ -182,6 +209,16 @@ namespace TriSpin
                 Exit();
             }
 
+            if (Keyboard.GetState().IsKeyDown(Key.X))
+            {
+                shaderKeyPressed = true;
+            }
+            else if (shaderKeyPressed)
+            {
+                shaderKeyPressed = false;
+                activeShader = shaders.Keys.First(s => s != activeShader);
+            }
+
             //Mouse
             if (Focused)
             {
@@ -191,8 +228,32 @@ namespace TriSpin
             }
         }
 
+        int LoadImage(Bitmap image)
+        {
+            int texID = GL.GenTexture();
+
+            GL.BindTexture(TextureTarget.Texture2D, texID);
+            BitmapData data = image.LockBits(new Rectangle(0, 0, image.Width, image.Height),
+                ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, data.Width, data.Height, 0,
+                OpenTK.Graphics.OpenGL4.PixelFormat.Bgra, PixelType.UnsignedByte, data.Scan0);
+
+            image.UnlockBits(data);
+
+            GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
+
+            return texID;
+        }
+
+        int LoadImage(string fileName)
+        {
+            Bitmap file = new Bitmap(fileName);
+            return LoadImage(file);
+        }
+
         public Win()
-            : base(512, 512, new GraphicsMode(32, 24, 0, 4))
+            : base(1024, 1024, new GraphicsMode(32, 24, 0, 4))
         {
 
         }

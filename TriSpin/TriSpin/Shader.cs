@@ -145,7 +145,7 @@ namespace TriSpin
     {
         public String name = "";
         public int address = -1;
-        public int size = 0;
+        public int size;
         public ActiveAttribType type;
     }
 
@@ -153,7 +153,7 @@ namespace TriSpin
     {
         public String name = "";
         public int address = -1;
-        public int size = 0;
+        public int size;
         public ActiveUniformType type;
     }
 }
