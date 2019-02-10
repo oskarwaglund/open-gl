@@ -44,6 +44,10 @@ namespace TriSpin
             textures.Add("bricks", LoadImage("bricks.jpg"));
             textures.Add("bricks2", LoadImage("bricks2.jpg"));
 
+            ObjVolume teapot = ObjVolume.LoadFromFile("teapot.obj");
+            teapot.Scale = new Vector3(0.1f, 0.1f, 0.1f);
+            Volumes.Add(teapot);
+
             TexPyramid tp1 = new TexPyramid();
             tp1.Position = new Vector3(-1, 0, 0);
             tp1.TextureID = textures["bricks2"];
@@ -92,9 +96,9 @@ namespace TriSpin
 
             foreach (var vol in Volumes)
             {
-                verts.AddRange(vol.Verts);
-                inds.AddRange(vol.GetIndices(vertCount));
-                colors.AddRange(vol.ColorData);
+                verts.AddRange(vol.Verts());
+                inds.AddRange(vol.Indices(vertCount));
+                colors.AddRange(vol.ColorData());
                 texCoords.AddRange(vol.GetTextureCoords());
                 vertCount += vol.VertLength;
             }
@@ -143,6 +147,8 @@ namespace TriSpin
             base.OnRenderFrame(e);
 
             if (!renderReady) return;
+
+            Title = "Pyramids | Time " + time;
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             GL.Enable(EnableCap.DepthTest);

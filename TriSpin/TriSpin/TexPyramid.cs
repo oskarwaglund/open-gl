@@ -5,6 +5,10 @@ namespace TriSpin
 {
     class TexPyramid : Volume
     {
+        private Vector3[] _Verts;
+        private int[] _Indices;
+        private Vector3[] _ColorData;
+
         public TexPyramid()
         {
             float V = 0.5f;
@@ -43,6 +47,33 @@ namespace TriSpin
                 v2(0, 0), v2(1, 0), v2(1, 1),
                 v2(0, 0), v2(0, 1), v2(1, 1)
             };
+        }
+
+        public override int VertLength
+        {
+            get { return _Verts.Length; }
+        }
+        public override Vector3[] Verts()
+        {
+            return _Verts;
+        }
+
+        public override int IndiceLength
+        {
+            get { return _Indices.Length; }
+        }
+        public override int[] Indices(int offset = 0)
+        {
+            return _Indices.Select(i => i + offset).ToArray();
+        }
+
+        public override int ColorDataLength
+        {
+            get { return _ColorData.Length; }
+        }
+        public override Vector3[] ColorData()
+        {
+            return _ColorData;
         }
 
         private Vector2 v2(float x, float y)

@@ -10,11 +10,6 @@ namespace TriSpin
         public Vector3 Rotation = Vector3.Zero;
         public Vector3 Scale = Vector3.One;
 
-        //Define in child class
-        protected Vector3[] _Verts;
-        protected int[] _Indices;
-        protected Vector3[] _ColorData;
-
         public Matrix4 ModelMatrix = Matrix4.Identity;
         public Matrix4 ViewProjectionMatrix = Matrix4.Identity;
         public Matrix4 ModelViewProjectionMatrix = Matrix4.Identity;
@@ -24,44 +19,14 @@ namespace TriSpin
         public int TextureCoordsCount;
         public abstract Vector2[] GetTextureCoords();
 
-        public int VertLength
-        {
-            get { return _Verts.Length; }
-        }
+        public abstract int VertLength { get; }
+        public abstract Vector3[] Verts();
 
-        public Vector3[] Verts
-        {
-            get
-            {
-                if (_Verts == null) throw new NotImplementedException();
-                return _Verts;
-            }
-        }
+        public abstract int IndiceLength { get; }
+        public abstract int[] Indices(int offset = 0);
 
-        public int IndiceLength
-        {
-            get { return _Indices.Length; }
-        }
-
-        public int[] GetIndices(int offset = 0)
-        {
-            if (_Indices == null) throw new NotImplementedException();
-            return _Indices.Select(i => i+offset).ToArray();
-        }
-
-        public int ColorDataLength
-        {
-            get { return _ColorData.Length; }
-        }
-
-        public Vector3[] ColorData
-        {
-            get
-            {
-                if (_ColorData == null) throw new NotImplementedException();
-                return _ColorData;
-            }
-        }
+        public abstract int ColorDataLength { get; }
+        public abstract Vector3[] ColorData();
 
         public void CalculateModelMatrix()
         {
